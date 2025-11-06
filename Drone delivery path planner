@@ -1,0 +1,96 @@
+import tkinter as tk, random, time, heapq
+
+ROWS, COLS, SIZE = 15, 15, 35
+root = tk.Tk()
+root.title("🚁 Drone Delivery Path Planner")
+canvas = tk.Canvas(root, width=COLS*SIZE, height=ROWS*SIZE, bg="#1e1e2f")
+canvas.pack()
+
+clr = {
+    "e": "#1e1e2f",
+    "o": "#555",
+    "s": "#00bfff",
+    "g": "#00ff7f",
+    "p": "#ffd700",
+    "d": "#00ffff"
+}
+
+grid = [[0]*COLS for _ in range(ROWS)]
+start, goal = (0, 0), (ROWS-1, COLS-1)
+
+def draw():
+    canvas.delete("all")
+    for i in range(ROWS):
+        for j in range(COLS):
+            c = clr["o"] if grid[i][j] else clr["e"]
+            if (i, j) == start: c = clr["s"]
+            if (i, j) == goal: c = clr["g"]
+            canvas.create_rectangle(j*SIZE, i*SIZE, (j+1)*SIZE, (i+1)*SIZE, fill=c, outline="#333")
+
+def astar(s, g):
+    q = [(0, s)]
+    came = {}
+    gscore = {s: 0}
+    while q:
+        _, cur = heapq.heappop(q)
+        if cur == g:
+            path = []
+            while cur in came:
+                path.append(cur)
+                cur = came[cur]
+            return path[::-1]
+        for dx, dy in [(0,1), (1,0), (-1,0), (0,-1)]:
+            x, y = cur[0] + dx, cur[1] + dy
+            if 0 <= x < ROWS and 0 <= y < COLS and not grid[x][y]:
+                new = gscore[cur] + 1
+                if new < gscore.get((x, y), 1e9):
+                    gscore[(x, y)] = new
+                    fscore = new + abs(g[0]-x) + abs(g[1]-y)
+                    heapq.heappush(q, (fscore, (x, y)))
+                    came[(x, y)] = cur
+    return None
+
+def gen():
+    while True:
+        for i in range(ROWS):
+            for j in range(COLS):
+                grid[i][j] = 1 if random.random() < 0.25 else 0
+        grid[0][0] = grid[-1][-1] = 0
+        if astar(start, goal): break
+    draw()
+
+def run():
+    path = astar(start, goal)
+    if not path:
+        canvas.create_text(COLS*SIZE/2, ROWS*SIZE/2, text="No Path Found!", fill="red", font=("Arial", 14, "bold"))
+        return
+    draw()
+    prev = start
+    for (x, y) in path:
+        canvas.create_line(
+            prev[1]*SIZE + SIZE/2, prev[0]*SIZE + SIZE/2,
+            y*SIZE + SIZE/2, x*SIZE + SIZE/2,
+            fill=clr["p"], width=3
+        )
+        canvas.create_oval(
+            y*SIZE+10, x*SIZE+10, y*SIZE+SIZE-10, x*SIZE+SIZE-10,
+            fill=clr["d"], outline=""
+        )
+        prev = (x, y)
+        root.update()
+        time.sleep(0.08)
+    canvas.create_text(goal[1]*SIZE+SIZE/2, goal[0]*SIZE+SIZE/2, text="🏁", font=("Arial", 16))
+
+def reset():
+    for i in range(ROWS):
+        for j in range(COLS):
+            grid[i][j] = 0
+    draw()
+
+tk.Button(root, text="Generate", command=gen, bg="#ff9800", fg="white").pack(side="left", fill="x", expand=1)
+tk.Button(root, text="Run A*", command=run, bg="#00bfff", fg="white").pack(side="left", fill="x", expand=1)
+tk.Button(root, text="Reset", command=reset, bg="#8e44ad", fg="white").pack(side="left", fill="x", expand=1)
+tk.Button(root, text="Exit", command=root.destroy, bg="#e74c3c", fg="white").pack(side="left", fill="x", expand=1)
+
+draw()
+root.mainloop()
